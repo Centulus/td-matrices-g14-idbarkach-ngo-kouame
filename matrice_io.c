@@ -47,6 +47,11 @@ void mat_afficher(const char *nom, const Matrice *m)
     /* (2.a) À COMPLÉTER : pour chaque ligne i, afficher chaque
      *       coefficient avec printf(" %8d", m->coef[i][j]),
      *       puis passer à la ligne avec putchar('\n').               */
+    for (int i = 0; i < m->nb_lignes; i++) {
+        for (int j = 0; j < m->nb_colonnes; j++)
+            printf(" %8d", m->coef[i][j]);
+        putchar('\n');
+    }
 }
 
 MatErreur mat_ecrire(FILE *f, const Matrice *m)
@@ -64,7 +69,16 @@ MatErreur mat_ecrire(FILE *f, const Matrice *m)
      *         - terminer la ligne avec fputc('\n', f) ;
      *         - si un fprintf renvoie un nombre < 0, ou si fputc
      *           renvoie EOF : return MAT_ERR_ECRITURE;               */
-
+    for (int i = 0; i < m->nb_lignes; i++) {
+        for (int j = 0; j < m->nb_colonnes; j++) {
+            if (fprintf(f, j == 0 ? "%d" : " %d", m->coef[i][j]) < 0) {
+                return MAT_ERR_ECRITURE;
+            }
+        }
+        if (fputc('\n', f) == EOF) {
+            return MAT_ERR_ECRITURE;
+        }
+    }
 
     /* FOURNI : forcer l'écriture du tampon et détecter une erreur. */
     if (fflush(f) == EOF)
