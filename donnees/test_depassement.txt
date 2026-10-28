@@ -1,2 +1,4 @@
 1 1
-999999999999999999999999
+999999999999999999999999git branch --show-current
+git status
+git log -1 --oneline
