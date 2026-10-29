@@ -22,38 +22,26 @@ Groupe de TD : TD2 (Matrices-G14) · 3e année STI, INSA Centre Val de Loire · 
 ---
 
 ## 1. Introduction
-Dans ce TD de programmation en C, nous avons pour objectif de réaliser une bibliothèque permettant de stocker et de manipuler des matrices d'entiers de tailles différentes.
 
-Le programme doit permettre de créer et de supprimer des matrices en utilisant l'allocation dynamique, de les lire et de les enregistrer dans des fichiers texte, ainsi que d'effectuer des additions et des multiplications matricielles.
+Ce TD consiste à écrire une petite bibliothèque C qui stocke des matrices d'entiers de taille quelconque : allocation et destruction, lecture et écriture dans des fichiers texte, addition et multiplication. Le sujet fournit les en-têtes `.h`, le squelette des fichiers `.c` et les programmes de test. Nous avons complété les étapes 1.a à 4.d.
 
-Pour cela, nous avons séparé le programme en plusieurs modules, chacun chargé d'une partie du travail : la gestion de la mémoire, les entrées-sorties et les calculs. Cette organisation permet de travailler sur les différentes fonctions séparément, puis de les réunir dans un programme principal.
+Le code est réparti en quatre modules (messages d'erreur, mémoire, entrées-sorties, calcul) et un programme principal, `demo_matrices`. Une bonne partie du travail porte sur les cas où quelque chose échoue : allocation refusée, fichier mal formé, dimensions incompatibles, dépassement d'entier. Dans chacun de ces cas, la fonction doit renvoyer le bon code d'erreur et ne laisser aucune mémoire allouée.
 
-Ce TD nous permet aussi de travailler sur plusieurs notions vues en cours, notamment les pointeurs, les structures, la compilation séparée et la gestion des fichiers en C. Une attention particulière est portée à la gestion des erreurs et à la libération de la mémoire, afin d'éviter les fuites mémoire.
-
-Enfin, nous utilisons les programmes de test fournis et quelques fichiers de test supplémentaires pour vérifier le comportement des fonctions, y compris lorsque les données sont incorrectes.
-<!-- Ce qui fonctionne à la remise (dire honnêtement ce qui manque). -->
+**État à la remise** : toutes les étapes sont faites. `test_ex1`, `test_ex2` et `test_ex3` passent entièrement (16/16, 14/14 et 14/14), les six scénarios de la CI aussi, et valgrind ne signale ni fuite ni erreur (partie 7).
 
 ## 2. Conception
-Pour ce projet, nous avons suivi l'organisation en modules définie dans le sujet. Le programme est réparti en plusieurs fichiers `.c` et `.h`, chacun ayant un rôle précis. Cette organisation permet de séparer les différentes fonctionnalités du programme, comme la gestion de la mémoire, les entrées-sorties et les calculs matriciels.
 
-Chaque module possède un fichier d'en-tête `.h`, qui contient les déclarations nécessaires à son utilisation, et un fichier `.c`, dans lequel les fonctions sont implémentées. Les modules peuvent ainsi être compilés séparément, puis réunis pour former le programme final.
-
-Pour représenter les matrices, nous utilisons la structure `Matrice`, composée de deux entiers indiquant le nombre de lignes et de colonnes, ainsi que d'un double pointeur `int **coef` permettant d'accéder aux coefficients. Cette représentation nécessite une allocation dynamique de la mémoire, puisque les dimensions des matrices ne sont pas connues à l'avance.
-
-Enfin, le sujet définit plusieurs règles concernant la gestion de la mémoire, les paramètres des fonctions et les erreurs possibles. Ces règles doivent être respectées dans tous les modules pour assurer leur bon fonctionnement ensemble et éviter les problèmes comme les fuites mémoire ou les doubles libérations.
+Nous avons gardé l'organisation imposée par le sujet. Chaque module a un `.h`, qui contient les déclarations et que nous n'avions pas le droit de modifier, et un `.c` qui contient l'implémentation. Une matrice est une structure `Matrice` qui contient ses deux dimensions et un `int **coef`, c'est-à-dire un tableau de pointeurs avec une ligne allouée pour chaque pointeur. Les dimensions ne sont connues qu'à l'exécution, donc tout passe par l'allocation dynamique.
 
 ### 2.1 Schéma des modules
-Le programme est organisé en quatre modules, auxquels s'ajoute le fichier principal `main.c`. Chaque module s'occupe d'une partie précise du programme, ce qui permet de séparer les fonctions selon leur rôle.
 
-| Module             | Rôle                                                        |
-|--------------------|-------------------------------------------------------------|
-|  matrice.c         | Vérifie les matrices et fournit les messages d'erreur.      |
-|  matrice_alloc.c   | Gère l'allocation et la libération de la mémoire.           |
-|  matrice_io.c      | Permet de lire, d'écrire et d'afficher les matrices.        |
-|  matrice_calcul.c  | Effectue l'addition et la multiplication des matrices.      |
-|  main.c            | Utilise les modules pour exécuter le programme principal.   |
-
-Le schéma suivant présente l'organisation générale du programme :
+| Module | Rôle |
+|---|---|
+| `matrice.c` | Vérifie qu'une matrice est valide et fournit les messages d'erreur. |
+| `matrice_alloc.c` | Alloue et libère la mémoire des matrices. |
+| `matrice_io.c` | Lit, écrit et affiche les matrices. |
+| `matrice_calcul.c` | Additionne et multiplie les matrices. |
+| `main.c` | Programme de démonstration qui utilise les quatre modules. |
 
 ```mermaid
 flowchart TD
@@ -65,16 +53,11 @@ flowchart TD
     E --> C
 ```
 
-Le programme principal commence par charger deux matrices depuis des fichiers texte à l'aide du module `matrice_io`. Il appelle ensuite les fonctions de `matrice_calcul` pour effectuer l'opération demandée. Le résultat est affiché, puis enregistré dans un fichier.
-
-Les modules `matrice_io` et `matrice_calcul` utilisent également les fonctions de `matrice_alloc` pour créer et détruire les matrices nécessaires aux opérations.
+`main.c` charge deux matrices avec `matrice_io`, appelle `matrice_calcul`, puis affiche et enregistre le résultat. `matrice_io` et `matrice_calcul` s'appuient sur `matrice_alloc` pour créer et détruire leurs matrices.
 
 ### 2.2 Graphe des inclusions
 
-Chaque fichier `.c` inclut son propre fichier d'en-tête `.h`, qui contient les déclarations des fonctions utilisées. Certains modules incluent aussi d'autres en-têtes lorsqu'ils ont besoin de leurs fonctions ou de leurs types.
-
-Le graphe suivant représente les principales inclusions entre les fichiers du projet. Une flèche signifie que le fichier de départ inclut le fichier d'arrivée avec `#include`.
-
+Une flèche signifie que le fichier de départ fait un `#include` du fichier d'arrivée.
 
 ```mermaid
 flowchart TB
@@ -113,12 +96,7 @@ flowchart TB
     MAIN --> CH
 ```
 
-
-Par exemple, `matrice_io.c` inclut `matrice_alloc.h` car la fonction `mat_lire` a besoin de `mat_allouer` pour créer une matrice, puis de `mat_detruire` en cas d'erreur. De même, `matrice_calcul.c` utilise ces fonctions pour gérer la mémoire des matrices résultats.
-
-Les fichiers d'en-tête utilisent également des gardes d'inclusion pour éviter qu'un même fichier soit inclus plusieurs fois lors de la compilation.
-
-Par exemple, dans `matrice_io.h` :
+Par exemple, `matrice_io.c` inclut `matrice_alloc.h` parce que `mat_lire` appelle `mat_allouer`, puis `mat_detruire` en cas d'erreur. `matrice.h` est inclus par tous les autres en-têtes, il est donc lu plusieurs fois à chaque compilation. Les gardes d'inclusion évitent les redéfinitions :
 
 ```c
 #ifndef MATRICE_IO_H
@@ -129,83 +107,46 @@ Par exemple, dans `matrice_io.h` :
 #endif
 ```
 
-La directive `#ifndef` vérifie si `MATRICE_IO_H` n'a pas encore été définie. Si c'est le cas, `#define` la définit et le contenu du fichier est pris en compte. Lors d'une nouvelle inclusion, ce contenu est ignoré, ce qui évite notamment les erreurs de redéfinition.
-
+À la deuxième inclusion, `MATRICE_IO_H` est déjà défini et le préprocesseur saute tout le contenu.
 
 ### 2.3 Règles de propriété de la mémoire (R1 à R7)
 
-Comme les matrices sont allouées dynamiquement, il faut définir qui est responsable de leur mémoire. Le sujet impose sept règles communes à tous les modules pour éviter les fuites mémoire et les doubles libérations.
+Le sujet impose sept règles communes à tous les modules, pour savoir à tout moment qui doit libérer quoi :
 
-**R1—Initialisation :** Toute variable de type `Matrice` doit être initialisée à `MATRICE_VIDE`. Cela permet de commencer avec une matrice qui ne possède aucune mémoire allouée.
+- **R1, initialisation** : toute variable `Matrice` commence à `MATRICE_VIDE`, sans mémoire allouée.
+- **R2, résultat** : quand une fonction renvoie `MAT_OK`, l'appelant devient propriétaire du résultat et devra appeler `mat_detruire`.
+- **R3, échec** : en cas d'erreur, la fonction libère tout ce qu'elle a alloué et laisse le résultat à `MATRICE_VIDE`.
+- **R4, entrées** : les matrices reçues en `const Matrice *` ne sont ni modifiées ni libérées.
+- **R5, sortie** : l'ancien contenu de `res` est écrasé sans être libéré, et `res` doit être différent des entrées.
+- **R6, destruction** : `mat_detruire` libère la matrice puis la remet à `MATRICE_VIDE`, on peut donc l'appeler deux fois sans danger.
+- **R7, fichiers** : celui qui fait `fopen` fait `fclose`. Les fonctions de `matrice_io.c` reçoivent un fichier déjà ouvert et ne le ferment pas.
 
-**R2—Propriété du résultat :** Lorsqu'une fonction crée une matrice avec succès (`MAT_OK`), c'est le code appelant qui devient responsable de sa mémoire. Il doit donc appeler `mat_detruire` lorsqu'il n'en a plus besoin.
-
-**R3—Gestion des échecs :** Si une fonction échoue, elle doit libérer toute la mémoire qu'elle a allouée et laisser son résultat à `MATRICE_VIDE`. L'appelant n'a alors aucune mémoire à libérer pour ce résultat.
-
-**R4—Matrices d'entrée :** Une fonction ne doit jamais modifier ni libérer les matrices reçues en entrée (`const Matrice *`). Elle doit conserver leurs données intactes.
-
-**R5—Paramètre de sortie :** Le paramètre `res` sert à stocker le résultat d'une opération. Son ancien contenu est écrasé : s'il possède déjà de la mémoire, l'appelant doit la libérer avant l'appel. `res` doit également être différent des matrices d'entrée.
-
-**R6—Destruction :** La fonction `mat_detruire` libère la mémoire d'une matrice et la remet à `MATRICE_VIDE`. On peut donc l'appeler plusieurs fois sur la même variable sans provoquer de double libération.
-
-**R7—Gestion des fichiers :** Le code qui ouvre un fichier avec `fopen` doit aussi le fermer avec `fclose`. Les fonctions de `matrice_io.c` reçoivent des fichiers déjà ouverts et ne les ferment pas elles-mêmes.
-
-Ces règles sont notamment utilisées dans `main.c`. Les matrices `a`, `b` et `r` sont initialisées à `MATRICE_VIDE`, puis libérées à la fin du programme, même si une erreur survient pendant la lecture, le calcul ou l'enregistrement.
-
+Dans `main.c`, `a`, `b` et `r` partent de `MATRICE_VIDE` et sont toutes les trois détruites à l'étiquette `nettoyage`, que le programme ait réussi ou non.
 
 ### 2.4 Choix de réalisation
 
-Plusieurs choix techniques sont définis dans le sujet pour assurer le bon fonctionnement des modules et gérer les erreurs.
+**Fonctions `static`.** `lire_entier` (dans `matrice_io.c`) et `verifier_parametres` (dans `matrice_calcul.c`) ne servent qu'à l'intérieur de leur fichier. Avec `static`, elles ne sont pas visibles depuis les autres modules et n'apparaissent pas dans les `.h`.
 
-**Fonctions internes (`static`)**
+**Échecs d'allocation.** `mat_allouer` alloue d'abord le tableau de pointeurs, puis chaque ligne avec `mat_calloc`. Si une ligne échoue, les lignes précédentes et le tableau sont libérés et la fonction renvoie `MAT_ERR_ALLOCATION` (voir 1.d).
 
-Certaines fonctions sont déclarées avec le mot-clé `static`, comme `lire_entier` dans `matrice_io.c` et `verifier_parametres` dans `matrice_calcul.c`. Elles sont utilisées uniquement à l'intérieur de leur fichier `.c` et ne sont donc pas accessibles depuis les autres modules.
-
-Cela permet de garder les fonctions internes séparées des fonctions publiques déclarées dans les fichiers `.h`.
-
-**Gestion des échecs d'allocation**
-
-Une matrice est représentée par un tableau de pointeurs `int **coef`. Le programme alloue d'abord le tableau des pointeurs, puis chaque ligne séparément avec `mat_calloc`.
-
-Si une allocation échoue au milieu de cette opération, les lignes déjà allouées sont libérées avec `free`, puis le tableau des pointeurs est également libéré. La fonction renvoie alors `MAT_ERR_ALLOCATION` et laisse la matrice résultat vide.
-
-Cette vérification est importante pour éviter les fuites mémoire lorsqu'une matrice ne peut pas être entièrement créée.
-
-**Détection des dépassements d'entiers**
-
-Lors de l'addition et de la multiplication, le résultat d'un calcul peut dépasser les limites du type `int`.
-
-Pour éviter ce problème, les calculs sont effectués dans un type plus grand, `long long`. Le programme vérifie ensuite que les valeurs obtenues sont comprises entre `INT_MIN` et `INT_MAX`.
-
-Pour la multiplication matricielle, chaque addition à la somme des produits est également vérifiée afin d'éviter un dépassement de `long long`.
-
-Si un dépassement est détecté, la fonction libère la matrice résultat et renvoie `MAT_ERR_DEPASSEMENT`.
-
+**Dépassements d'entiers.** Les sommes et les produits sont calculés en `long long`, puis `tient_dans_int` vérifie que le résultat tient dans un `int`. Pour la multiplication, chaque ajout à la somme des produits est aussi contrôlé pour ne pas dépasser `LLONG_MAX` (voir 3.g). Si un dépassement est détecté, la matrice résultat est détruite et la fonction renvoie `MAT_ERR_DEPASSEMENT`.
 
 ### 2.5 Compilation
 
-Le projet utilise la compilation séparée : chaque fichier `.c` peut être compilé indépendamment en un fichier objet `.o`. Ces fichiers sont ensuite réunis lors de l'édition de liens pour créer l'exécutable final.
+Le Makefile compile chaque `.c` en `.o`, puis fait l'édition de liens des quatre programmes avec les options de la CI (`-std=c11 -Wall -Wextra -Wpedantic -g`) :
 
-Pour compiler directement le programme de démonstration, on peut utiliser la commande suivante :
+```bash
+make          # demo_matrices, test_ex1, test_ex2 et test_ex3
+make clean    # supprime les .o et les exécutables
+```
+
+`matrice_alloc.c` y est compilé deux fois : normalement pour `demo_matrices`, et avec `-DMAT_TEST_ALLOC` pour les programmes de test, qui ont besoin de simuler des échecs d'allocation. Sans le Makefile, la démo se compile en une commande :
 
 ```bash
 gcc -std=c11 -Wall -Wextra -Wpedantic -g \
     main.c matrice.c matrice_alloc.c matrice_io.c matrice_calcul.c \
     -o demo_matrices
 ```
-
-Les options `-Wall`, `-Wextra` et `-Wpedantic` permettent d'activer les avertissements du compilateur. L'option `-g` ajoute les informations nécessaires au débogage.
-
-Une fois la compilation terminée, le programme peut être exécuté avec la commande suivante :
-
-```bash
-./demo_matrices add donnees/A.txt donnees/B.txt R.txt
-```
-
-Cette commande lit les matrices A et B, effectue leur addition et enregistre le résultat dans `R.txt`.
-
-Les programmes `test_ex1`, `test_ex2` et `test_ex3` permettent également de vérifier séparément les différentes fonctions de la bibliothèque.
-
 
 ## 3. Exercice 1 : allocation et destruction
 
@@ -308,7 +249,6 @@ En revanche, si on écrit `Matrice b = a;`, les deux structures contiennent le m
 **Q3.4 — Pourquoi mat_allouer initialise-t-elle *res à MATRICE_VIDE avant de vérifier les dimensions ?**
 
 La fonction initialise `*res` à `MATRICE_VIDE` dès le début pour garantir que le résultat reste vide en cas d'erreur. Ainsi, si les dimensions sont invalides ou si une allocation échoue, l'appelant ne reçoit pas une matrice partiellement construite. Cela permet de respecter la règle R3 et de simplifier la gestion des erreurs.
-
 
 ### Résultat du test
 ```text
@@ -603,7 +543,7 @@ Dans cet exercice, nous avons complété le fichier `main.c` pour utiliser les f
 
 Les fonctions `charger` et `sauvegarder` étaient déjà fournies dans le sujet. Notre travail consistait à compléter les étapes 4.a à 4.d.
 
-**4.a — Affichage des matrices**
+**4.a : affichage des matrices**
 
 Après la lecture des deux fichiers, nous affichons les matrices A et B avec `mat_afficher`.
 
@@ -612,7 +552,7 @@ mat_afficher("A", &a);
 mat_afficher("B", &b);
 ```
 
-**4.b — Calcul du résultat**
+**4.b : calcul du résultat**
 
 Selon l'opération choisie, le programme appelle `mat_additionner` ou `mat_multiplier`. Nous utilisons l'opérateur ternaire proposé dans le sujet.
 
@@ -623,7 +563,7 @@ MatErreur err = addition ? mat_additionner(&a, &b, &r)
 
 Si le calcul échoue, le programme affiche un message d'erreur ainsi que les dimensions des matrices, puis passe directement au nettoyage avec `goto nettoyage`. Cela permet de gérer les cas comme les dimensions incompatibles ou les dépassements d'entiers.
 
-**4.c — Affichage du résultat**
+**4.c : affichage du résultat**
 
 Lorsque le calcul réussit, nous affichons la matrice résultat en précisant l'opération effectuée.
 
@@ -631,7 +571,7 @@ Lorsque le calcul réussit, nous affichons la matrice résultat en précisant l'
 mat_afficher(addition ? "R = A + B" : "R = A x B", &r);
 ```
 
-**4.d — Confirmation de l'enregistrement**
+**4.d : confirmation de l'enregistrement**
 
 Après l'enregistrement du résultat dans le fichier de sortie, nous affichons un message de confirmation et indiquons que le programme s'est terminé correctement.
 
@@ -658,10 +598,9 @@ Dans `sauvegarder`, le fichier est ouvert en écriture. Certaines erreurs peuven
 
 Il faut libérer les trois matrices : A, B et R. Même si l'enregistrement a échoué, les deux matrices d'entrée ont été chargées et la matrice résultat a été créée pendant le calcul. Le programme utilise `goto nettoyage` pour rejoindre la partie qui appelle `mat_detruire` sur les trois matrices. Ainsi, toute la mémoire allouée est libérée avant de quitter le programme.
 
-
 ## 7. Vérifications mémoire
-<!-- Melvine : pour test_ex1, test_ex2, test_ex3 et demo_matrices, le HEAP SUMMARY de valgrind --leak-check=full -->
-<!-- + un scénario d'erreur de demo_matrices sous valgrind. -->
+
+Les quatre programmes sous `valgrind --leak-check=full`, plus un cas d'erreur de la démo. Dans les cinq cas, toute la mémoire est libérée et valgrind ne relève aucune erreur.
 
 ### test_ex1
 ```text
@@ -718,224 +657,154 @@ code de sortie : 1
 
 ## 8. Démonstration finale
 
-Pour vérifier le fonctionnement du programme complet, nous avons prévu plusieurs scénarios de test. Ils permettent de contrôler l'addition, la multiplication et la gestion des erreurs. Les scénarios suivants ont été exécutés sous Windows, dans le terminal PowerShell de Visual Studio Code, après compilation du programme avec GCC.
+Ces six scénarios sont ceux de la CI. Nous les avons lancés dans WSL (Ubuntu), après `make`. Les lignes `Erreur : …` sont écrites sur la sortie d'erreur.
 
-### Scénario 1 : addition de deux matrices
-
-Commande :
-
-```powershell
-.\demo_matrices.exe add donnees/A.txt donnees/B.txt R.txt
-```
-
-Sortie :
+### Scénario 1 : addition
 
 ```text
+$ ./demo_matrices add donnees/A.txt donnees/B.txt R.txt
 A (4 x 3) :
-      25       48       84
-      15       33       11
-      45       88       10
-       0       12       -5
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
 B (4 x 3) :
-       1        2        3
-       4        5        6
-       7        8        9
-      10       11       12
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
 R = A + B (4 x 3) :
-      26       50       87
-      19       38       17
-      52       96       19
-      10       23        7
+       26       50       87
+       19       38       17
+       52       96       19
+       10       23        7
 Résultat enregistré dans "R.txt".
+$ echo $?
+0
+$ cat R.txt
+4 3
+26 50 87
+19 38 17
+52 96 19
+10 23 7
 ```
 
-Code de sortie :
+`R.txt` est au format canonique : les dimensions sur la première ligne, puis un espace entre les coefficients et aucun en fin de ligne.
 
-```powershell
-$LASTEXITCODE
-# 0
-```
-
-Le programme charge correctement les deux matrices de dimensions 4 × 3, calcule leur somme et enregistre le résultat dans `R.txt`. Le code de sortie `0` confirme que l'exécution s'est terminée avec succès.
-
-
-
-### Scénario 2 : multiplication de deux matrices
-
-Commande :
-
-```powershell
-.\demo_matrices.exe mul donnees/A.txt donnees/C.txt R.txt
-```
-
-Sortie obtenue :
+### Scénario 2 : multiplication
 
 ```text
+$ ./demo_matrices mul donnees/A.txt donnees/C.txt R.txt
 A (4 x 3) :
-      25       48       84
-      15       33       11
-      45       88       10
-       0       12       -5
-
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
 B (3 x 2) :
-       1        0
-       0        1
-       2       -1
-
+        1        0
+        0        1
+        2       -1
 R = A x B (4 x 2) :
-     193      -36
-      37       22
-      65       78
-     -10       17
-
+      193      -36
+       37       22
+       65       78
+      -10       17
 Résultat enregistré dans "R.txt".
+$ echo $?
+0
 ```
 
-Code de sortie :
+Une matrice 4 × 3 multipliée par une matrice 3 × 2 donne bien une matrice 4 × 2. Par exemple, le premier coefficient vaut 25 × 1 + 48 × 0 + 84 × 2 = 193.
 
-```powershell
-$LASTEXITCODE
-# 0
-```
-
-Le programme multiplie correctement une matrice de dimensions 4 × 3 par une matrice de dimensions 3 × 2. Le résultat obtenu est une matrice 4 × 2, conformément aux règles de multiplication matricielle. Le code de sortie `0` indique que le calcul et l'enregistrement ont réussi.
-
-
-
-### Scénario 3 : addition avec dimensions incompatibles
-
-Commande :
-
-```powershell
-Remove-Item R.txt -ErrorAction SilentlyContinue
-.\demo_matrices.exe add donnees/A.txt donnees/C.txt R.txt
-$LASTEXITCODE
-Test-Path R.txt
-```
-
-Sortie obtenue :
+### Scénario 3 : addition de dimensions incompatibles
 
 ```text
+$ ./demo_matrices add donnees/A.txt donnees/C.txt R.txt
 A (4 x 3) :
-      25       48       84
-      15       33       11
-      45       88       10
-       0       12       -5
-
+       25       48       84
+       15       33       11
+       45       88       10
+        0       12       -5
 B (3 x 2) :
-       1        0
-       0        1
-       2       -1
-
+        1        0
+        0        1
+        2       -1
 Erreur : calcul impossible : dimensions incompatibles (A : 4 x 3, B : 3 x 2)
+$ echo $?
 1
-False
+$ ls R.txt
+ls: cannot access 'R.txt': No such file or directory
 ```
 
-L'addition est refusée car les matrices n'ont pas les mêmes dimensions. Le programme renvoie le code `1` et aucun fichier résultat n'est créé. Cela confirme que l'erreur est correctement détectée et que le programme s'arrête avant l'enregistrement.
+`mat_additionner` renvoie `MAT_ERR_DIMENSIONS` et le programme passe directement au nettoyage. Aucun fichier résultat n'est créé.
 
-
-
-### Scénario 4 : addition de matrices 1 × 1
-
-Commande :
-
-```powershell
-.\demo_matrices.exe add donnees/test_1x1_a.txt donnees/test_1x1_b.txt R.txt
-$LASTEXITCODE
-```
-
-Sortie obtenue :
+### Scénario 4 : matrices 1 × 1
 
 ```text
+$ ./demo_matrices add donnees/test_1x1_a.txt donnees/test_1x1_b.txt R.txt
 A (1 x 1) :
-       5
+        5
 B (1 x 1) :
-       3
+        3
 R = A + B (1 x 1) :
-       8
+        8
 Résultat enregistré dans "R.txt".
+$ echo $?
 0
 ```
 
-Ce test permet de vérifier que le programme fonctionne également avec les dimensions minimales autorisées. L'addition des deux matrices donne bien 8 et le code de sortie `0` confirme que l'opération a réussi.
+Les plus petites dimensions autorisées fonctionnent : 5 + 3 = 8.
 
-
-
-### Scénario 5 : multiplication avec des coefficients négatifs
-
-Commande :
-
-```powershell
-.\demo_matrices.exe mul donnees/test_negatif_a.txt donnees/test_negatif_b.txt R.txt
-$LASTEXITCODE
-```
-
-Sortie obtenue :
+### Scénario 5 : coefficients négatifs
 
 ```text
+$ ./demo_matrices mul donnees/test_negatif_a.txt donnees/test_negatif_b.txt R.txt
 A (2 x 2) :
-      -3        5
-       7       -2
-
+       -3        5
+        7       -2
 B (2 x 2) :
-       4       -8
-      -1        6
-
+        4       -8
+       -1        6
 R = A x B (2 x 2) :
-     -17       54
-      30      -68
-
+      -17       54
+       30      -68
 Résultat enregistré dans "R.txt".
+$ echo $?
 0
 ```
 
-Ce scénario vérifie que la multiplication matricielle fonctionne également avec des coefficients négatifs. Les quatre coefficients du résultat correspondent aux valeurs attendues et le programme se termine avec le code `0`.
+Le calcul à la main donne le même résultat, par exemple (-3) × 4 + 5 × (-1) = -17.
 
-
-
-### Scénario 6 : lecture d'un fichier mal formé
-
-Commande :
-
-```powershell
-Remove-Item R.txt -ErrorAction SilentlyContinue
-.\demo_matrices.exe add donnees/test_non_numerique.txt donnees/B.txt R.txt
-$LASTEXITCODE
-Test-Path R.txt
-```
-
-Sortie obtenue :
+### Scénario 6 : fichier mal formé
 
 ```text
+$ ./demo_matrices add donnees/test_non_numerique.txt donnees/B.txt R.txt
 Erreur : lecture de "donnees/test_non_numerique.txt" : fichier mal formé
+$ echo $?
 1
-False
+$ ls R.txt
+ls: cannot access 'R.txt': No such file or directory
 ```
 
-Ce scénario permet de vérifier la gestion des erreurs de lecture. Le fichier `test_non_numerique.txt` contient une valeur non numérique (`abc`) à la place d'un coefficient. La fonction `mat_lire` détecte cette erreur et renvoie `MAT_ERR_FORMAT`.
-
-Le programme s'arrête avec le code `1`, sans effectuer l'addition ni créer de fichier résultat.
-
-
+Le fichier contient `abc` à la place d'un coefficient. `mat_lire` renvoie `MAT_ERR_FORMAT` et le programme s'arrête avant de faire le calcul.
 
 ## 9. Bilan et difficultés
 
-### Ce que nous avons compris / difficultés rencontrées
+### Ce que nous avons compris et les difficultés rencontrées
 
-Ce TD nous a permis de mieux comprendre la programmation modulaire en C, notamment la séparation entre les fichiers d'en-tête `.h` et les fichiers sources `.c`. Nous avons également travaillé sur l'allocation dynamique, la manipulation des pointeurs et la gestion des fichiers texte.
+Ce TD nous a fait travailler la compilation séparée, les pointeurs, l'allocation dynamique et les fichiers texte, avec des règles de propriété de la mémoire à respecter d'un module à l'autre.
 
-L'un des aspects les plus difficles du projet concerne la gestion de la mémoire. Comme les lignes d'une matrice sont allouées séparément, il faut prévoir le cas où une allocation échoue avant que la matrice soit entièrement créée. Dans ce cas, toutes les zones déjà allouées doivent être libérées pour éviter les fuites mémoire. La gestion des erreurs constitue également un point important. Chaque fonction doit renvoyer le bon code d'erreur tout en respectant les règles définies dans le sujet. Il faut notamment distinguer les erreurs liées aux arguments, aux dimensions des matrices et au contenu des fichiers.
+Le plus difficile a été la gestion de la mémoire, parce qu'une erreur ne se voit pas forcément dans les tests. Dans `mat_detruire`, une boucle qui s'arrêtait une ligne trop tôt donnait quand même 16/16 à `test_ex1`. C'est valgrind qui a montré les 16 octets perdus. Il faut aussi penser au cas où une allocation échoue au milieu de la construction d'une matrice, et libérer exactement ce qui a déjà été alloué.
 
-Enfin, les opérations matricielles nécessitent quelques précautions, notamment pour vérifier la compatibilité des dimensions et éviter les dépassements d'entiers lors des calculs. Ce projet nous a ainsi permis de mieux comprendre l'importance des vérifications et de la gestion de la mémoire dans un programme C composé de plusieurs modules.
-
+La gestion des erreurs demande la même rigueur. Il faut choisir le bon code : une dimension nulle dans un fichier donne `MAT_ERR_FORMAT` et pas `MAT_ERR_ARGUMENT`, car ce sont les données qui sont fausses et pas les paramètres. Pour les dépassements d'entiers, nous avons vu qu'un test fait après coup sur un `int` ne détecte rien de façon fiable (Q5.4), d'où les calculs en `long long`.
 
 ### Répartition du travail
-- **Youness ID-BARKACH** : …
-- **Melvine KOUAME** : exercice 2 (`matrice_io.c`), Makefile, vérifications mémoire avec valgrind (partie 7), questions Q4.1 à Q4.4.
-- **Quang NGO** : 
-- **Quang NGO** : exercice 4 (`main.c`), création de 9 fichiers de test, réalisation des 6 scénarios de démonstration (partie 8),        introduction, conception, questions Q3.1 à Q3.4 et Q6.1 à Q6.3, bilan.
 
+- **Youness ID-BARKACH** : exercices 1 (`matrice.c`, `matrice_alloc.c`) et 3 (`matrice_calcul.c`), questions Q5.1 à Q5.4, mise en place du dépôt GitHub (protection de `main`, pull requests).
+- **Melvine KOUAME** : exercice 2 (`matrice_io.c`), Makefile, vérifications mémoire avec valgrind (partie 7), questions Q4.1 à Q4.4.
+- **Quang NGO** : exercice 4 (`main.c`), 9 fichiers de test, scénarios de démonstration (partie 8), introduction, conception, questions Q3.1 à Q3.4 et Q6.1 à Q6.3, bilan.
 
 ### Aides extérieures
-<!-- Obligatoire : toute ressource (forum, IA…) doit être déclarée avec son usage. -->
+
+- Google, pour des recherches ponctuelles.
+- Des assistants IA (ChatGPT et Claude), pour l'installation de WSL sous Windows afin d'utiliser valgrind, l'explication de certaines consignes, l'aide au débogage, ainsi que la rédaction et la mise en forme de ce README (table des matières, schémas).
