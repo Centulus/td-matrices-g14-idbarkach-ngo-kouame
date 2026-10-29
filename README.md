@@ -337,20 +337,143 @@ Bilan : 16 / 16 verifications reussies.
 ```
 
 ## 4. Exercice 2 : entrées-sorties
-<!-- Melvine : code commenté 2.a à 2.f -->
+
+Fichier complété : [matrice_io.c](matrice_io.c) (2.a à 2.f). Seules les lignes que nous avons écrites sont reprises ici.
+
+**2.a : affichage des coefficients**
+
+Chaque coefficient est affiché sur 8 caractères pour que les colonnes soient alignées.
+
+```c
+for (int i = 0; i < m->nb_lignes; i++) {
+    for (int j = 0; j < m->nb_colonnes; j++)
+        printf(" %8d", m->coef[i][j]);
+    putchar('\n');
+}
+```
+
+**2.b : écriture au format canonique**
+
+Le premier coefficient d'une ligne est écrit sans espace devant, les autres avec un espace : il n'y a donc jamais d'espace en fin de ligne. Chaque `fprintf` et chaque `fputc` est vérifié.
+
+```c
+for (int i = 0; i < m->nb_lignes; i++) {
+    for (int j = 0; j < m->nb_colonnes; j++) {
+        if (fprintf(f, j == 0 ? "%d" : " %d", m->coef[i][j]) < 0) {
+            return MAT_ERR_ECRITURE;
+        }
+    }
+    if (fputc('\n', f) == EOF) {
+        return MAT_ERR_ECRITURE;
+    }
+}
+```
+
+**2.c : vérification des dimensions lues**
+
+Si une dimension n'est pas entre 1 et `MAT_DIM_MAX`, on renvoie `MAT_ERR_FORMAT` et pas `MAT_ERR_ARGUMENT` : les paramètres de la fonction sont corrects, c'est le contenu du fichier qui est faux.
+
+```c
+if (nb_lignes > MAT_DIM_MAX || nb_lignes < 1
+    || nb_colonnes > MAT_DIM_MAX || nb_colonnes < 1) {
+    return MAT_ERR_FORMAT;
+}
+```
+
+**2.d et 2.e : lecture dans une matrice locale**
+
+On lit dans `tmp` et pas directement dans `*res`. Si un coefficient est invalide ou manquant, on libère `tmp` avant de renvoyer l'erreur, et `*res` reste vide (règle R3).
+
+```c
+Matrice tmp;
+err = mat_allouer(&tmp, nb_lignes, nb_colonnes);
+if (err != MAT_OK) {
+    return err;
+}
+for (int i = 0; i < nb_lignes; i++) {
+    for (int j = 0; j < nb_colonnes; j++) {
+        err = lire_entier(f, &tmp.coef[i][j]);
+        if (err != MAT_OK) {
+            mat_detruire(&tmp);
+            return err;
+        }
+    }
+}
+```
+
+**2.f : transfert du résultat**
+
+Tout a réussi : l'appelant devient propriétaire de la matrice et devra la détruire (règle R2).
+
+```c
+*res = tmp;
+return MAT_OK;
+```
 
 ### Questions
-**Q4.1** …
+**Q4.1 — Pourquoi mat_lire remplit-elle d'abord une matrice locale avant de l'affecter à \*res ?**
 
-**Q4.2** …
+On utilise une matrice temporaire `tmp` pour éviter que `*res` contienne une matrice qui n'a pas été complètement remplie.
 
-**Q4.3** …
+Au début, `*res` est initialisé à `MATRICE_VIDE`. Ensuite, à l'étape 2.d, on alloue la mémoire pour `tmp`. Si une erreur se produit pendant la boucle de lecture (étape 2.e), on détruit `tmp` avec `mat_detruire(&tmp)` et on retourne l'erreur. Comme `*res` est toujours vide, l'appelant n'a rien à libérer, ce qui respecte la règle R3.
 
-**Q4.4** …
+C'est seulement à l'étape 2.f, lorsque toute la lecture a réussi, qu'on fait `*res = tmp`. L'appelant devient alors propriétaire de la matrice, conformément à la règle R2.
+
+Si on avait directement utilisé `*res`, une erreur pendant la lecture aurait pu laisser une matrice partiellement remplie.
+
+**Q4.2 — La lecture vérifie-t-elle que chaque ligne de la matrice est sur sa propre ligne de texte ? Est-ce gênant ? Justifiez le principe « tolérant en lecture, strict en écriture ».**
+
+Non, car la fonction `lire_entier` utilise `fscanf` avec `%31s`, qui ignore les espaces, les tabulations et les retours à la ligne. Que les coefficients soient écrits sur une seule ligne ou sur plusieurs lignes, `mat_lire` les lit de la même manière.
+
+Ce n'est pas vraiment un problème puisque les dimensions sont lues en premier : on sait donc exactement combien de coefficients il faut lire, c'est-à-dire `n × p`. Le programme reste strict sur le contenu : les dimensions doivent être comprises entre 1 et `MAT_DIM_MAX`, et chaque coefficient doit être un entier représentable par un `int`.
+
+Être tolérant en lecture permet d'accepter des fichiers écrits à la main ou par un autre programme, même si la mise en page n'est pas parfaite. Être strict en écriture garantit que `mat_ecrire` produit toujours le même format (un espace entre les coefficients, aucun espace en fin de ligne), donc un fichier que le programme peut toujours relire, par exemple `./demo_matrices add R.txt R.txt R2.txt`.
+
+**Q4.3 — Après l'appel mat_lire(f, &m), le flux f est positionné après le dernier coefficient. Comment exploiter cette propriété pour stocker deux matrices dans un même fichier ?**
+
+`mat_lire` lit uniquement les dimensions et les coefficients de la première matrice, c'est-à-dire `2 + n × p` entiers.
+
+Une fois la première matrice lue, la fonction s'arrête sans fermer le fichier. On peut donc rappeler `mat_lire` avec le même flux `f` pour lire la deuxième matrice, puisque la lecture reprend à l'endroit où elle s'était arrêtée.
+
+C'est pareil pour l'écriture : on peut appeler deux fois `mat_ecrire` avec le même fichier pour écrire les deux matrices à la suite. Cela fonctionne parce que ces fonctions ne ferment pas le fichier, conformément à la règle R7.
+
+**Q4.4 — Pourquoi mat_ecrire appelle-t-elle fflush avant de renvoyer MAT_OK ? Cela dispense-t-il l'appelant de tester fclose ?**
+
+`fprintf` n'écrit pas forcément les données directement sur le disque : elles peuvent d'abord être stockées dans un tampon en mémoire. Si une erreur se produit, par exemple si le disque est plein, elle peut ne pas être détectée immédiatement. `fflush` vide le tampon et permet de vérifier si l'écriture s'est bien passée. En cas d'erreur, `mat_ecrire` retourne `MAT_ERR_ECRITURE` au lieu de `MAT_OK`.
+
+Cela ne dispense pas de vérifier `fclose`, car une erreur peut encore se produire pendant la fermeture du fichier. C'est pour cette raison que la fonction `sauvegarder` dans `main.c` vérifie le résultat de `fclose(f)`. C'est aussi elle qui ferme le fichier puisqu'elle l'a ouvert, conformément à la règle R7.
 
 ### Résultat du test
 ```text
-(sortie de ./test_ex2, Bilan : 14 / 14)
+$ ./test_ex2
+=== Exercice 2 : affichage (verification visuelle) ===
+M (4 x 3) :
+        1        2        3
+        4        5        6
+        7        8        9
+       10       11       12
+(2.a) Vous devez voir ci-dessus 4 lignes : 1 2 3 / 4 5 6 / 7 8 9 / 10 11 12
+=== Exercice 2 : ecriture ===
+[OK]    ouverture de test_ex2_sortie.txt en ecriture
+[OK]    (2.b) mat_ecrire renvoie MAT_OK
+[OK]    (2.b) le fichier contient exactement le format attendu
+[OK]    (2.b) mat_ecrire refuse une matrice vide
+=== Exercice 2 : relecture ===
+[OK]    (2.f) mat_lire relit le fichier : MAT_OK
+[OK]    (2.e) la matrice relue est identique
+[OK]    (2.e) espaces et sauts de ligne en trop sont toleres
+=== Exercice 2 : fichiers incorrects ===
+[OK]    (2.c) fichier vide
+[OK]    (2.c) dimension nulle
+[OK]    (2.c) dimension negative
+[OK]    (2.e) coefficient manquant
+[OK]    (2.e) donnee non numerique
+[OK]    (2.e) entier trop grand pour un int
+=== Exercice 2 : echec d'allocation simule ===
+[OK]    (2.d) mat_lire renvoie MAT_ERR_ALLOCATION proprement
+
+Bilan : 14 / 14 verifications reussies.
+Pensez a verifier l'absence de fuite : valgrind --leak-check=full ./test_ex2
 ```
 
 ## 5. Exercice 3 : calcul matriciel
@@ -542,24 +665,55 @@ Il faut libérer les trois matrices : A, B et R. Même si l'enregistrement a éc
 
 ### test_ex1
 ```text
-HEAP SUMMARY: ...
-All heap blocks were freed -- no leaks are possible
+$ valgrind --leak-check=full ./test_ex1
+==4153== HEAP SUMMARY:
+==4153==     in use at exit: 0 bytes in 0 blocks
+==4153==   total heap usage: 11 allocs, 11 frees, 4,300 bytes allocated
+==4153== All heap blocks were freed -- no leaks are possible
+==4153== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```
 
 ### test_ex2
 ```text
+$ valgrind --leak-check=full ./test_ex2
+==4154== HEAP SUMMARY:
+==4154==     in use at exit: 0 bytes in 0 blocks
+==4154==   total heap usage: 51 allocs, 51 frees, 63,800 bytes allocated
+==4154== All heap blocks were freed -- no leaks are possible
+==4154== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```
 
 ### test_ex3
 ```text
+$ valgrind --leak-check=full ./test_ex3
+==4155== HEAP SUMMARY:
+==4155==     in use at exit: 0 bytes in 0 blocks
+==4155==   total heap usage: 37 allocs, 37 frees, 4,484 bytes allocated
+==4155== All heap blocks were freed -- no leaks are possible
+==4155== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 ```
 
 ### demo_matrices (calcul réussi)
 ```text
+$ valgrind --leak-check=full ./demo_matrices add donnees/A.txt donnees/B.txt R.txt
+==4156== HEAP SUMMARY:
+==4156==     in use at exit: 0 bytes in 0 blocks
+==4156==   total heap usage: 22 allocs, 22 frees, 18,040 bytes allocated
+==4156== All heap blocks were freed -- no leaks are possible
+==4156== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+code de sortie : 0
 ```
 
 ### demo_matrices (scénario d'erreur)
 ```text
+$ valgrind --leak-check=full ./demo_matrices add donnees/invalide.txt donnees/B.txt R.txt
+Erreur : lecture de "donnees/invalide.txt" : fichier mal formé
+==4157== HEAP SUMMARY:
+==4157==     in use at exit: 0 bytes in 0 blocks
+==4157==   total heap usage: 5 allocs, 5 frees, 4,600 bytes allocated
+==4157== All heap blocks were freed -- no leaks are possible
+==4157== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+code de sortie : 1
 ```
 
 ## 8. Démonstration finale
@@ -695,7 +849,7 @@ Enfin, les opérations matricielles nécessitent quelques précautions, notammen
 
 ### Répartition du travail
 - **Youness ID-BARKACH** : …
-- **Melvine KOUAME** : …
+- **Melvine KOUAME** : exercice 2 (`matrice_io.c`), Makefile, vérifications mémoire avec valgrind (partie 7), questions Q4.1 à Q4.4.
 - **Quang NGO** : …
 
 ### Aides extérieures
