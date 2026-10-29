@@ -933,7 +933,9 @@ Enfin, les opérations matricielles nécessitent quelques précautions, notammen
 ### Répartition du travail
 - **Youness ID-BARKACH** : …
 - **Melvine KOUAME** : exercice 2 (`matrice_io.c`), Makefile, vérifications mémoire avec valgrind (partie 7), questions Q4.1 à Q4.4.
-- **Quang NGO** : …
+- **Quang NGO** : 
+- **Quang NGO** : exercice 4 (`main.c`), création de 9 fichiers de test, réalisation des 6 scénarios de démonstration (partie 8),        introduction, conception, questions Q3.1 à Q3.4 et Q6.1 à Q6.3, bilan.
+
 
 ### Aides extérieures
 <!-- Obligatoire : toute ressource (forum, IA…) doit être déclarée avec son usage. -->
