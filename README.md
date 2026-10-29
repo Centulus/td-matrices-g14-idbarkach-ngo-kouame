@@ -718,122 +718,205 @@ code de sortie : 1
 
 ## 8. Démonstration finale
 
-Pour vérifier le fonctionnement du programme complet, nous avons prévu plusieurs scénarios de test. Ils permettent de contrôler l'addition, la multiplication et la gestion des erreurs.
+Pour vérifier le fonctionnement du programme complet, nous avons prévu plusieurs scénarios de test. Ils permettent de contrôler l'addition, la multiplication et la gestion des erreurs. Les scénarios suivants ont été exécutés sous Windows, dans le terminal PowerShell de Visual Studio Code, après compilation du programme avec GCC.
 
 ### Scénario 1 : addition de deux matrices
 
 Commande :
 
-```bash
-./demo_matrices add donnees/A.txt donnees/B.txt R.txt
-echo $?
+```powershell
+.\demo_matrices.exe add donnees/A.txt donnees/B.txt R.txt
 ```
 
-Sortie du programme :
+Sortie :
 
 ```text
-(À compléter)
+A (4 x 3) :
+      25       48       84
+      15       33       11
+      45       88       10
+       0       12       -5
+B (4 x 3) :
+       1        2        3
+       4        5        6
+       7        8        9
+      10       11       12
+R = A + B (4 x 3) :
+      26       50       87
+      19       38       17
+      52       96       19
+      10       23        7
+Résultat enregistré dans "R.txt".
 ```
 
-Résultat attendu : code de sortie `0`. Le programme doit afficher les matrices A et B, calculer leur somme et enregistrer le résultat dans `R.txt`.
+Code de sortie :
+
+```powershell
+$LASTEXITCODE
+# 0
+```
+
+Le programme charge correctement les deux matrices de dimensions 4 × 3, calcule leur somme et enregistre le résultat dans `R.txt`. Le code de sortie `0` confirme que l'exécution s'est terminée avec succès.
+
+
 
 ### Scénario 2 : multiplication de deux matrices
 
 Commande :
 
-```bash
-./demo_matrices mul donnees/A.txt donnees/C.txt R.txt
-echo $?
+```powershell
+.\demo_matrices.exe mul donnees/A.txt donnees/C.txt R.txt
 ```
 
-Sortie du programme :
+Sortie obtenue :
 
 ```text
-(À compléter)
+A (4 x 3) :
+      25       48       84
+      15       33       11
+      45       88       10
+       0       12       -5
+
+B (3 x 2) :
+       1        0
+       0        1
+       2       -1
+
+R = A x B (4 x 2) :
+     193      -36
+      37       22
+      65       78
+     -10       17
+
+Résultat enregistré dans "R.txt".
 ```
 
-Résultat attendu : code de sortie `0`. Le programme doit calculer le produit de A par C, qui donne une matrice de dimensions 4 × 2.
+Code de sortie :
+
+```powershell
+$LASTEXITCODE
+# 0
+```
+
+Le programme multiplie correctement une matrice de dimensions 4 × 3 par une matrice de dimensions 3 × 2. Le résultat obtenu est une matrice 4 × 2, conformément aux règles de multiplication matricielle. Le code de sortie `0` indique que le calcul et l'enregistrement ont réussi.
+
+
 
 ### Scénario 3 : addition avec dimensions incompatibles
 
 Commande :
 
-```bash
-./demo_matrices add donnees/A.txt donnees/C.txt R.txt
-echo $?
+```powershell
+Remove-Item R.txt -ErrorAction SilentlyContinue
+.\demo_matrices.exe add donnees/A.txt donnees/C.txt R.txt
+$LASTEXITCODE
+Test-Path R.txt
 ```
 
-Sortie du programme :
+Sortie obtenue :
 
 ```text
-(À compléter)
+A (4 x 3) :
+      25       48       84
+      15       33       11
+      45       88       10
+       0       12       -5
+
+B (3 x 2) :
+       1        0
+       0        1
+       2       -1
+
+Erreur : calcul impossible : dimensions incompatibles (A : 4 x 3, B : 3 x 2)
+1
+False
 ```
 
-Résultat attendu : code de sortie `1`. Les matrices A et C n'ont pas les mêmes dimensions, donc l'addition est impossible. Le programme doit afficher un message d'erreur et ne pas créer de nouveau fichier résultat.
+L'addition est refusée car les matrices n'ont pas les mêmes dimensions. Le programme renvoie le code `1` et aucun fichier résultat n'est créé. Cela confirme que l'erreur est correctement détectée et que le programme s'arrête avant l'enregistrement.
 
-Dans les trois scénarios, les matrices doivent être libérées avant la fin du programme, y compris lorsqu'une erreur survient.
 
 
 ### Scénario 4 : addition de matrices 1 × 1
 
 Commande :
 
-```bash
-./demo_matrices add donnees/test_1x1_a.txt donnees/test_1x1_b.txt R.txt
-echo $?
+```powershell
+.\demo_matrices.exe add donnees/test_1x1_a.txt donnees/test_1x1_b.txt R.txt
+$LASTEXITCODE
 ```
 
-Sortie du programme :
+Sortie obtenue :
 
 ```text
-(À compléter )
+A (1 x 1) :
+       5
+B (1 x 1) :
+       3
+R = A + B (1 x 1) :
+       8
+Résultat enregistré dans "R.txt".
+0
 ```
 
-Résultat attendu : code de sortie `0`. Les deux matrices ne contiennent qu'un seul coefficient, respectivement 5 et 3. Le résultat doit donc être une matrice 1 × 1 contenant la valeur 8.
+Ce test permet de vérifier que le programme fonctionne également avec les dimensions minimales autorisées. L'addition des deux matrices donne bien 8 et le code de sortie `0` confirme que l'opération a réussi.
+
+
 
 ### Scénario 5 : multiplication avec des coefficients négatifs
 
 Commande :
 
-```bash
-./demo_matrices mul donnees/test_negatif_a.txt donnees/test_negatif_b.txt R.txt
-echo $?
+```powershell
+.\demo_matrices.exe mul donnees/test_negatif_a.txt donnees/test_negatif_b.txt R.txt
+$LASTEXITCODE
 ```
 
-Sortie du programme :
+Sortie obtenue :
 
 ```text
-(À compléter)
+A (2 x 2) :
+      -3        5
+       7       -2
+
+B (2 x 2) :
+       4       -8
+      -1        6
+
+R = A x B (2 x 2) :
+     -17       54
+      30      -68
+
+Résultat enregistré dans "R.txt".
+0
 ```
 
-Résultat attendu : code de sortie `0`. Ce test permet de vérifier que la multiplication fonctionne également avec des coefficients négatifs.
+Ce scénario vérifie que la multiplication matricielle fonctionne également avec des coefficients négatifs. Les quatre coefficients du résultat correspondent aux valeurs attendues et le programme se termine avec le code `0`.
 
-Le résultat attendu est :
 
-```text
-2 2
--17 54
-30 -68
-```
 
-### Scénario 6 : lecture d'un fichier incorrect
+### Scénario 6 : lecture d'un fichier mal formé
 
 Commande :
 
-```bash
-./demo_matrices add donnees/test_non_numerique.txt donnees/B.txt R.txt
-echo $?
+```powershell
+Remove-Item R.txt -ErrorAction SilentlyContinue
+.\demo_matrices.exe add donnees/test_non_numerique.txt donnees/B.txt R.txt
+$LASTEXITCODE
+Test-Path R.txt
 ```
 
-Sortie du programme :
+Sortie obtenue :
 
 ```text
-(À compléter)
+Erreur : lecture de "donnees/test_non_numerique.txt" : fichier mal formé
+1
+False
 ```
 
-Résultat attendu : code de sortie `1`. Le fichier contient une valeur non numérique (`abc`) à la place d'un coefficient. La fonction `mat_lire` doit détecter cette erreur et renvoyer `MAT_ERR_FORMAT`.
+Ce scénario permet de vérifier la gestion des erreurs de lecture. Le fichier `test_non_numerique.txt` contient une valeur non numérique (`abc`) à la place d'un coefficient. La fonction `mat_lire` détecte cette erreur et renvoie `MAT_ERR_FORMAT`.
 
-Le programme doit alors afficher un message d'erreur et s'arrêter sans effectuer le calcul.
+Le programme s'arrête avec le code `1`, sans effectuer l'addition ni créer de fichier résultat.
+
 
 
 ## 9. Bilan et difficultés
@@ -850,7 +933,9 @@ Enfin, les opérations matricielles nécessitent quelques précautions, notammen
 ### Répartition du travail
 - **Youness ID-BARKACH** : …
 - **Melvine KOUAME** : exercice 2 (`matrice_io.c`), Makefile, vérifications mémoire avec valgrind (partie 7), questions Q4.1 à Q4.4.
-- **Quang NGO** : …
+- **Quang NGO** : 
+- **Quang NGO** : exercice 4 (`main.c`), création de 9 fichiers de test, réalisation des 6 scénarios de démonstration (partie 8),        introduction, conception, questions Q3.1 à Q3.4 et Q6.1 à Q6.3, bilan.
+
 
 ### Aides extérieures
 <!-- Obligatoire : toute ressource (forum, IA…) doit être déclarée avec son usage. -->
