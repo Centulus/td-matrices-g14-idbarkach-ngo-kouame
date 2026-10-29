@@ -226,13 +226,13 @@ Notre première version bouclait jusqu'à `i < m->nb_lignes - 1`. `test_ex1` aff
 
 ### Questions
 
-**Q3.1 — Pourquoi mat_detruire prend-elle un Matrice * et non un Matrice ? Que se passerait-il avec un passage par valeur ?**
+**Q3.1 — Pourquoi `mat_detruire` prend-elle un `Matrice *` et non un `Matrice` ? Que se passerait-il avec un passage par valeur ?**
 
 La fonction `mat_detruire` reçoit un pointeur `Matrice *` pour pouvoir modifier directement la matrice de l'appelant. Après avoir libéré la mémoire, elle remet ses champs à l'état `MATRICE_VIDE`.
 
 Avec un passage par valeur, la fonction travaillerait sur une copie de la structure. La mémoire pointée pourrait être libérée, mais la matrice d'origine garderait un pointeur vers une zone déjà libérée. Cela pourrait provoquer des erreurs si on essayait de la réutiliser ou de la détruire une deuxième fois.
 
-**Q3.2 — Combien d'appels à calloc et à free faut-il pour une matrice n × p ? Si la k-ième allocation échoue, combien de libérations faut-il effectuer ?**
+**Q3.2 — Combien d'appels à `calloc` et à `free` faut-il pour une matrice n × p ? Si la k-ième allocation échoue, combien de libérations faut-il effectuer ?**
 
 Pour une matrice de `n` lignes et `p` colonnes, il faut `1 + n` allocations : une pour le tableau des pointeurs et une pour chacune des `n` lignes.
 
@@ -240,13 +240,13 @@ La destruction complète nécessite donc également `1 + n` appels à `free`.
 
 Si la k-ième allocation échoue, les `k - 1` allocations précédentes ont réussi. Il faut alors effectuer `k - 1` appels à `free` pour libérer toute la mémoire déjà réservée.
 
-**Q3.3 — Pourquoi peut-on appeler mat_detruire deux fois sans danger ? Est-ce toujours vrai avec une copie de la matrice ?**
+**Q3.3 — Pourquoi peut-on appeler `mat_detruire` deux fois sans danger ? Est-ce toujours vrai avec une copie de la matrice ?**
 
 Après le premier appel, `mat_detruire` remet la matrice à `MATRICE_VIDE`. Lors du deuxième appel, le pointeur `coef` vaut `NULL`, donc aucune mémoire n'est libérée une seconde fois.
 
 En revanche, si on écrit `Matrice b = a;`, les deux structures contiennent le même pointeur `coef`. Ce n'est pas une copie des coefficients, mais seulement de leur adresse. Si on détruit `a`, la mémoire est libérée, mais `b` pointe toujours vers cette même zone. Appeler ensuite `mat_detruire(&b)` peut donc provoquer une double libération.
 
-**Q3.4 — Pourquoi mat_allouer initialise-t-elle *res à MATRICE_VIDE avant de vérifier les dimensions ?**
+**Q3.4 — Pourquoi `mat_allouer` initialise-t-elle `*res` à `MATRICE_VIDE` avant de vérifier les dimensions ?**
 
 La fonction initialise `*res` à `MATRICE_VIDE` dès le début pour garantir que le résultat reste vide en cas d'erreur. Ainsi, si les dimensions sont invalides ou si une allocation échoue, l'appelant ne reçoit pas une matrice partiellement construite. Cela permet de respecter la règle R3 et de simplifier la gestion des erreurs.
 
@@ -351,7 +351,7 @@ return MAT_OK;
 ```
 
 ### Questions
-**Q4.1 — Pourquoi mat_lire remplit-elle d'abord une matrice locale avant de l'affecter à \*res ?**
+**Q4.1 — Pourquoi `mat_lire` remplit-elle d'abord une matrice locale avant de l'affecter à `*res` ?**
 
 On utilise une matrice temporaire `tmp` pour éviter que `*res` contienne une matrice qui n'a pas été complètement remplie.
 
@@ -369,7 +369,7 @@ Ce n'est pas vraiment un problème puisque les dimensions sont lues en premier :
 
 Être tolérant en lecture permet d'accepter des fichiers écrits à la main ou par un autre programme, même si la mise en page n'est pas parfaite. Être strict en écriture garantit que `mat_ecrire` produit toujours le même format (un espace entre les coefficients, aucun espace en fin de ligne), donc un fichier que le programme peut toujours relire, par exemple `./demo_matrices add R.txt R.txt R2.txt`.
 
-**Q4.3 — Après l'appel mat_lire(f, &m), le flux f est positionné après le dernier coefficient. Comment exploiter cette propriété pour stocker deux matrices dans un même fichier ?**
+**Q4.3 — Après l'appel `mat_lire(f, &m)`, le flux `f` est positionné après le dernier coefficient. Comment exploiter cette propriété pour stocker deux matrices dans un même fichier ?**
 
 `mat_lire` lit uniquement les dimensions et les coefficients de la première matrice, c'est-à-dire `2 + n × p` entiers.
 
@@ -377,7 +377,7 @@ Une fois la première matrice lue, la fonction s'arrête sans fermer le fichier.
 
 C'est pareil pour l'écriture : on peut appeler deux fois `mat_ecrire` avec le même fichier pour écrire les deux matrices à la suite. Cela fonctionne parce que ces fonctions ne ferment pas le fichier, conformément à la règle R7.
 
-**Q4.4 — Pourquoi mat_ecrire appelle-t-elle fflush avant de renvoyer MAT_OK ? Cela dispense-t-il l'appelant de tester fclose ?**
+**Q4.4 — Pourquoi `mat_ecrire` appelle-t-elle `fflush` avant de renvoyer `MAT_OK` ? Cela dispense-t-il l'appelant de tester `fclose` ?**
 
 `fprintf` n'écrit pas forcément les données directement sur le disque : elles peuvent d'abord être stockées dans un tampon en mémoire. Si une erreur se produit, par exemple si le disque est plein, elle peut ne pas être détectée immédiatement. `fflush` vide le tampon et permet de vérifier si l'écriture s'est bien passée. En cas d'erreur, `mat_ecrire` retourne `MAT_ERR_ECRITURE` au lieu de `MAT_OK`.
 
@@ -584,13 +584,13 @@ Enfin, le programme passe par l'étiquette `nettoyage`, où les trois matrices s
 
 ### Questions
 
-**Q6.1 — Pourquoi le message d'erreur est-il affiché dans main.c et non dans mat_lire ?**
+**Q6.1 — Pourquoi le message d'erreur est-il affiché dans `main.c` et non dans `mat_lire` ?**
 
 La fonction `mat_lire` fait partie de la bibliothèque. Son rôle est de lire une matrice et de renvoyer un code d'erreur si nécessaire, sans décider comment cette erreur doit être affichée. C'est donc le programme appelant, ici `main.c`, qui affiche le message correspondant avec `mat_message_erreur`.
 
 Cela permet de réutiliser la bibliothèque dans d'autres programmes, par exemple une application graphique qui afficherait les erreurs dans une fenêtre plutôt que dans un terminal.
 
-**Q6.2 — Pourquoi le résultat de fclose est-il testé dans sauvegarder mais pas dans charger ?**
+**Q6.2 — Pourquoi le résultat de `fclose` est-il testé dans `sauvegarder` mais pas dans `charger` ?**
 
 Dans `sauvegarder`, le fichier est ouvert en écriture. Certaines erreurs peuvent apparaître seulement au moment de `fclose`, lorsque les dernières données sont écrites sur le disque. Il faut donc vérifier son résultat pour détecter un éventuel échec d'enregistrement. Dans `charger`, le fichier est ouvert en lecture. Les erreurs de lecture sont déjà détectées par `mat_lire`, et la fermeture ne nécessite pas d'écriture de données. C'est pourquoi le code fourni ne vérifie pas le résultat de `fclose` dans cette fonction.
 
