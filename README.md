@@ -208,9 +208,80 @@ Les programmes `test_ex1`, `test_ex2` et `test_ex3` permettent également de vé
 
 
 ## 3. Exercice 1 : allocation et destruction
-<!-- Youness : code commenté des parties À COMPLÉTER (1.a à 1.f), uniquement ce qu'on a écrit. -->
 
-### Questions
+Fichiers complétés : [matrice.c](matrice.c) (1.a, 1.b) et [matrice_alloc.c](matrice_alloc.c) (1.c à 1.f). Seules les lignes que nous avons écrites sont reprises ici.
+
+**1.a : messages des deux derniers codes d'erreur**
+
+```c
+case MAT_ERR_DIMENSIONS:  return "dimensions incompatibles";
+case MAT_ERR_DEPASSEMENT: return "dépassement de capacité";
+```
+
+**1.b : `mat_est_valide`**
+
+Une seule expression, évaluée de gauche à droite. Grâce au `&&`, si `m` vaut `NULL` on ne lit jamais `m->coef`.
+
+```c
+return (m != NULL)
+    && (m->coef != NULL)
+    && (m->nb_lignes >= 1) && (m->nb_lignes <= MAT_DIM_MAX)
+    && (m->nb_colonnes >= 1) && (m->nb_colonnes <= MAT_DIM_MAX);
+```
+
+**1.c : refus des dimensions hors de [1, MAT_DIM_MAX]**
+
+Le test est fait avant toute allocation : en cas de refus, il n'y a rien à libérer et `*res` est déjà à `MATRICE_VIDE`.
+
+```c
+if (nb_lignes < 1 || nb_lignes > MAT_DIM_MAX || nb_colonnes < 1 || nb_colonnes > MAT_DIM_MAX) {
+    return MAT_ERR_ARGUMENT;
+}
+```
+
+**1.d : allocation des lignes, avec retour en arrière si une ligne échoue**
+
+Si la ligne `i` ne peut pas être allouée, on libère les lignes `i - 1` à `0` déjà obtenues, puis le tableau de pointeurs, avant de renvoyer l'erreur (règle R3).
+
+```c
+for (int i = 0; i < nb_lignes; i++) {
+    coef[i] = mat_calloc((size_t)nb_colonnes, sizeof(int));
+    if (coef[i] == NULL) {
+        for (int k = i - 1; k >= 0; k--)
+            free(coef[k]);
+        free(coef);
+        return MAT_ERR_ALLOCATION;
+    }
+}
+```
+
+Au premier essai nous avions écrit `sizeof(float)`. Cela aurait fonctionné par hasard, puisqu'un `float` et un `int` font tous les deux 4 octets sur notre machine, mais le type était faux.
+
+**1.e : transfert du résultat**
+
+`*res` n'est rempli qu'une fois toutes les allocations réussies, et l'appelant devient propriétaire de la matrice (règle R2).
+
+```c
+res->coef = coef;
+res->nb_lignes = nb_lignes;
+res->nb_colonnes = nb_colonnes;
+return MAT_OK;
+```
+
+**1.f : `mat_detruire`**
+
+On libère les lignes avant le tableau qui les contient : dans l'autre ordre, `m->coef[i]` serait lu dans une zone déjà libérée.
+
+```c
+if (m->coef != NULL){
+    for (int i=0; i < m->nb_lignes; i++){
+        free(m->coef[i]);
+    }
+    free(m->coef);
+}
+```
+
+Notre première version bouclait jusqu'à `i < m->nb_lignes - 1`. `test_ex1` affichait quand même 16/16, car il vérifie seulement que la matrice est vide après l'appel. C'est valgrind qui a trouvé l'erreur : 16 octets perdus, soit exactement une ligne de 4 `int` de la matrice 3 × 4 du test.
 
 ### Questions
 
@@ -241,7 +312,28 @@ La fonction initialise `*res` à `MATRICE_VIDE` dès le début pour garantir que
 
 ### Résultat du test
 ```text
-(sortie de ./test_ex1, avec la ligne Bilan : 16 / 16)
+$ ./test_ex1
+=== Exercice 1 : matrice.c ===
+[OK]    (1.a) message pour MAT_ERR_DIMENSIONS
+[OK]    (1.a) message pour MAT_ERR_DEPASSEMENT
+[OK]    (1.b) une matrice 1 x 2 est valide
+[OK]    (1.b) NULL n'est pas valide
+[OK]    (1.b) MATRICE_VIDE n'est pas valide
+[OK]    (1.b) une matrice de 0 ligne n'est pas valide
+=== Exercice 1 : matrice_alloc.c ===
+[OK]    (1.c) mat_allouer refuse 0 ligne
+[OK]    (1.c) mat_allouer refuse -2 colonnes
+[OK]    (1.c) mat_allouer refuse une dimension > MAT_DIM_MAX
+[OK]    (1.e) mat_allouer(&m, 3, 4) renvoie MAT_OK
+[OK]    (1.e) m a 3 lignes et 4 colonnes
+[OK]    (1.d) tous les coefficients valent 0
+[OK]    (1.f) apres mat_detruire, m est vide
+[OK]    (1.f) un second mat_detruire est sans danger
+[OK]    (1.f) mat_detruire(NULL) ne plante pas
+=== Exercice 1 : echecs d'allocation simules ===
+[OK]    (1.d) chaque echec renvoie MAT_ERR_ALLOCATION et laisse *res vide
+
+Bilan : 16 / 16 verifications reussies.
 ```
 
 ## 4. Exercice 2 : entrées-sorties
@@ -262,20 +354,124 @@ La fonction initialise `*res` à `MATRICE_VIDE` dès le début pour garantir que
 ```
 
 ## 5. Exercice 3 : calcul matriciel
-<!-- Youness : code commenté 3.a à 3.h -->
+
+Fichier complété : [matrice_calcul.c](matrice_calcul.c), étapes 3.a à 3.h. Dans les deux fonctions, `verifier_parametres` (fournie) a déjà refusé un `res` égal à une entrée et des matrices invalides, et a mis `*res` à `MATRICE_VIDE`.
+
+### Addition
+
+**3.a : dimensions**
+
+```c
+if (a->nb_lignes != b->nb_lignes || a->nb_colonnes != b->nb_colonnes) {
+    return MAT_ERR_DIMENSIONS;
+}
+```
+
+Notre premier jet était `if (a != b)`, qui compare les adresses des deux matrices et pas leurs tailles : deux matrices distinctes auraient toujours été refusées.
+
+**3.b : allocation du résultat**, aux dimensions de `a`. Si elle échoue, `mat_allouer` a déjà tout libéré, il suffit de propager le code.
+
+```c
+err = mat_allouer(&r, a->nb_lignes, a->nb_colonnes);
+if (err != MAT_OK) return err;
+```
+
+**3.c : somme en `long long`**
+
+La conversion doit avoir lieu avant l'addition : avec `(long long)(a->coef[i][j] + b->coef[i][j])`, l'addition se ferait en `int` et pourrait déborder avant même d'être convertie. La somme de deux `int` tient toujours dans un `long long`, et `tient_dans_int` (fourni) vérifie ensuite qu'elle tient dans un `int`.
+
+```c
+long long s = (long long)a->coef[i][j] + (long long)b->coef[i][j];
+```
+
+**3.d : transfert**
+
+```c
+*res = r;
+return MAT_OK;
+```
+
+### Multiplication
+
+**3.e : compatibilité**, colonnes de `a` égales aux lignes de `b`.
+
+```c
+if (a->nb_colonnes != b->nb_lignes) {
+    return MAT_ERR_DIMENSIONS;
+}
+```
+
+**3.f : allocation**, de taille (lignes de `a`) × (colonnes de `b`).
+
+```c
+err = mat_allouer(&r, a->nb_lignes, b->nb_colonnes);
+if (err != MAT_OK) return err;
+```
+
+**3.g : somme des produits**
+
+Un produit de deux `int` tient dans un `long long`, mais la somme de `p` produits peut dépasser `LLONG_MAX`. On vérifie donc chaque ajout avant de le faire : si `p > 0`, il faut `s <= LLONG_MAX - p`, et si `p < 0`, il faut `s >= LLONG_MIN - p`. Ces deux soustractions ne débordent jamais. En cas de dépassement, `r` est détruite avant de sortir.
+
+```c
+for (int k = 0; k < a->nb_colonnes; k++) {
+    long long p = (long long)a->coef[i][k] * b->coef[k][j];
+
+    if ((p > 0 && s > LLONG_MAX - p)
+        || (p < 0 && s < LLONG_MIN - p)) {
+        mat_detruire(&r);
+        return MAT_ERR_DEPASSEMENT;
+    }
+    s += p;
+}
+```
+
+**3.h : transfert**, identique au 3.d.
+
+```c
+*res = r;
+return MAT_OK;
+```
 
 ### Questions
-**Q5.1** …
 
-**Q5.2** …
+**Q5.1 — Le paramètre `const Matrice *a` empêche-t-il d'écrire `a->coef[0][0] = 7;` ? Que protège exactement ce `const` ? Que faudrait-il changer pour que le compilateur refuse cette affectation ?**
 
-**Q5.3** …
+Non. Le `const` protège la structure pointée, c'est-à-dire ses champs `nb_lignes`, `nb_colonnes` et le pointeur `coef`, mais pas les entiers vers lesquels `coef` pointe. Nous l'avons vérifié avec nos options de compilation : `a->coef[0][0] = 7;` passe sans avertissement, alors que `a->nb_lignes = 7;` donne `error: assignment of member 'nb_lignes' in read-only object`. Pour que la première affectation soit refusée, il faudrait déclarer les coefficients eux-mêmes `const` dans `matrice.h` (par exemple `const int *const *coef`), mais alors `mat_lire` et `mat_additionner` ne pourraient plus remplir leurs résultats.
 
-**Q5.4** …
+**Q5.2 — Pourquoi refuse-t-on l'appel `mat_additionner(&a, &b, &a)` alors que, mathématiquement, a ← a + b a un sens ? Que se passerait-il avec notre implémentation si on l'acceptait ?**
+
+Modifier une entrée est contraire aux règles R4 et R5 : `verifier_parametres` renvoie donc `MAT_ERR_ARGUMENT` si `res` est égal à `a` ou à `b`. Nous avons fait l'appel dans un petit programme, il renvoie bien « argument invalide » et `a` reste intacte. Si on l'acceptait, la ligne suivante, `*res = MATRICE_VIDE;`, effacerait `a` avant le calcul : son pointeur `coef` serait perdu (fuite), puis `a`, devenue vide, serait refusée comme invalide. Même sans cette remise à zéro, `*res = r;` à la fin écraserait `a` sans libérer ses lignes.
+
+**Q5.3 — Combien de multiplications d'entiers effectue `mat_multiplier` pour des matrices n × p et p × q ? Combien pour deux matrices 1000 × 1000 ?**
+
+Le résultat a `n × q` coefficients, et chacun demande `p` multiplications (la boucle sur `k`), soit `n × p × q` au total. Pour deux matrices 1000 × 1000, cela fait 10⁹ multiplications. Nous avons essayé : `mat_multiplier` met environ 2,8 s sur nos deux matrices 1000 × 1000 remplies de zéros, compilées avec `-g` sans optimisation, dans WSL.
+
+**Q5.4 — Pourquoi ne suffit-il pas de calculer `int s = a + b;` puis de tester `s < a` pour détecter un dépassement ?**
+
+En C, le dépassement d'un `int` signé est un comportement indéfini : une fois `a + b` calculé, il est trop tard pour tester, et le compilateur a le droit de supposer qu'il n'y a pas eu de débordement, donc de remplacer `s < a` par `b < 0`. Nous l'avons vérifié : avec `-O0`, `INT_MAX + 1` est détecté (la valeur repasse à `INT_MIN`), mais avec `-O2` le même appel renvoie 0. Le test est aussi faux pour `b` négatif : avec `-O0`, `INT_MIN + (-1)` passe inaperçu et `5 + (-3)` est signalé à tort. D'où le calcul en `long long`, où la somme de deux `int` ne déborde jamais.
 
 ### Résultat du test
 ```text
-(sortie de ./test_ex3, Bilan : 14 / 14)
+$ ./test_ex3
+=== Exercice 3 : addition ===
+[OK]    (3.a) (2 x 3) + (3 x 2) : MAT_ERR_DIMENSIONS
+[OK]    (3.d) (2 x 3) + (2 x 3) : MAT_OK
+[OK]    (3.c) a + b est correct
+[OK]    a et b n'ont pas ete modifiees
+[OK]    (3.b) le resultat possede sa propre memoire
+[OK]    (3.c) INT_MAX + 1 : MAT_ERR_DEPASSEMENT
+=== Exercice 3 : multiplication ===
+[OK]    (3.e) (2 x 3) x (2 x 3) : MAT_ERR_DIMENSIONS
+[OK]    (3.h) (2 x 3) x (3 x 2) : MAT_OK
+[OK]    (3.g) a x c = (58 64 / 139 154)
+[OK]    (3.f) (3 x 2) x (2 x 3) donne une matrice 3 x 3
+[OK]    a et c n'ont pas ete modifiees
+[OK]    (3.g) 2 x 10^10 depasse INT_MAX : MAT_ERR_DEPASSEMENT
+=== Exercice 3 : cas particuliers ===
+[OK]    resultat = entree refuse, a reste intacte
+[OK]    (3.f) echec d'allocation : MAT_ERR_ALLOCATION, r vide
+
+Bilan : 14 / 14 verifications reussies.
 ```
 
 ## 6. Exercice 4 : démonstration complète
